@@ -1,0 +1,26 @@
+{
+    "collab_server" : "",
+    "contents" : "",
+    "created" : 1565664015193.000,
+    "dirty" : false,
+    "encoding" : "UTF-8",
+    "folds" : "",
+    "hash" : "0",
+    "id" : "DE60FDBD",
+    "lastKnownWriteTime" : 1565672743,
+    "last_content_update" : 1565672743584,
+    "path" : "~/Dropbox/@Papers/ISQC-Miao/01_Data_cleaning.Rmd",
+    "project_path" : "01_Data_cleaning.Rmd",
+    "properties" : {
+        "cursorPosition" : "240,0",
+        "last_setup_crc32" : "C9E0BC1Ac4e2d899",
+        "scrollLine" : "236"
+    },
+    "read_only" : false,
+    "read_only_alternatives" : [
+    ],
+    "relative_order" : 5,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "r_markdown"
+}

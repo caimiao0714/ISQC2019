@@ -1,0 +1,3 @@
+"0","fitnhpp = readRDS(""fit/nhpp_fit_non_center.rds"")"
+"0","tracep = rstan::traceplot(fit, ""beta"")"
+"0","ggsave(""figs/traceplot_beta.png"", width = 10, height = 6.18)"

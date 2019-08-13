@@ -1,0 +1,264 @@
+---
+title: "Data cleaning"
+author: "Miao Cai <miao.cai@slu.edu>"
+date: "8/6/2019"
+output: 
+  pdf_document:
+    number_sections: true
+    keep_tex: true
+header-includes: 
+  - \usepackage{float}
+  - \usepackage{dcolumn}
+  - \usepackage{booktabs}
+  - \usepackage{pdflscape}
+geometry: margin=2cm
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+# Original ping data
+
+```{r}
+pacman::p_load(data.table, knitr, ggplot2, kableExtra)
+ping = fread("data/01_ping.csv")
+ping[,ping_time := gsub("\"", "", ping_time)]
+
+sce = fread("data/11_SCE.csv")
+sce[,event_time := gsub("T|Z", " ", event_time)]
+
+driver = fread("data/12_driver.csv")
+
+weather = fread("data/13_weather.csv")
+weather[,ping_time := gsub("T|Z", " ", ping_time)]
+
+osmar = fread("data/14_OpenStreetMap.csv") 
+```
+
+```{r ping, results='asis'}
+kable(ping[1:20,], "latex", align = "c", 
+      booktab = TRUE, linesep = "",
+      caption = "ping data") %>% 
+  kable_styling(latex_options = c("hold_position"))
+```
+
+# Transformed data
+
+```{r}
+t1 = fread("data/21_Transformed_trips.csv")
+t1[,`:=`(start_time = gsub("T|Z", " ", start_time),
+         end_time = gsub("T|Z", " ", end_time)) ]
+t2 = fread("data/22_Transformed_30_min_interval.csv")
+t2[,`:=`(start_time = gsub("T|Z", " ", start_time),
+         end_time = gsub("T|Z", " ", end_time)) ]
+t3 = fread("data/23_Transformed_shifts.csv")
+t3[,`:=`(shift_start = gsub("T|Z", " ", shift_start),
+         shift_end = gsub("T|Z", " ", shift_end)) ]
+```
+
+```{r transformtrip, results='asis'}
+kable(t1[driver == "canj1"][1:5,], "latex", align = "c", 
+      booktab = TRUE, linesep = "", 
+      caption = "Transformed trips data") %>% 
+  kable_styling(latex_options = c("hold_position"))
+```
+
+```{r tranform30interval, results='asis'}
+kable(t2[1:5,], "latex", align = "c", 
+      booktab = TRUE, linesep = "", 
+      caption = "Transformed 30-minute intervals") %>% 
+  kable_styling(latex_options = c("hold_position"))
+```
+
+```{r transformshift, results='asis'}
+kable(t3[1:5,], "latex", align = "c", 
+      booktab = TRUE, linesep = "",
+      caption = "Transformed shifts data") %>% 
+  kable_styling(latex_options = c("hold_position"))
+```
+
+
+# SCE, driver age, road geometry, and weather
+
+```{r safety, results='asis'}
+kable(sce[1:5,], "latex", align = "c", 
+      booktab = TRUE, linesep = "",
+      caption = "safety critical events") %>% 
+  kable_styling(latex_options = c("hold_position"))
+```
+
+```{r drivers, results='asis'}
+kable(driver[1:10,], "latex", align = "c", 
+      booktab = TRUE, linesep = "", 
+      caption = "drivers") %>% 
+  kable_styling(latex_options = c("hold_position"))
+```
+
+```{r road, results='asis'}
+kable(osmar[25:29,], "latex", align = "c", 
+      booktab = TRUE, linesep = "", 
+      caption = "Road geometry from the OpenStreetMap API") %>% 
+  kable_styling(latex_options = c("hold_position"))
+```
+
+```{r weather, results='asis'}
+kable(weather[1:5,], "latex", align = "c", 
+      booktab = TRUE, linesep = "",
+      caption = "weather from the DarkSky API") %>% 
+  kable_styling(latex_options = c("hold_position"))
+```
+
+
+
+# Data analyses
+
+
+```{r}
+pacman::p_load(dplyr, data.table, lubridate)
+ping = fread("data/01_ping.csv") %>% 
+  .[,ping_time := ymd_hms(ping_time)]
+
+sce = fread("data/11_SCE.csv") %>% 
+  .[,event_time := ymd_hms(event_time)] %>% 
+  .[,dummy := event_time] %>% 
+  setkey(driver, event_time, dummy)
+
+driver = fread("data/12_driver.csv")
+
+weather = fread("data/13_weather.csv") %>% 
+  .[,ping_time := ymd_hms(ping_time)]
+
+osmar = fread("data/14_OpenStreetMap.csv")
+
+trips = fread("data/21_Transformed_trips.csv") %>% 
+  .[,`:=`(start_time = ymd_hms(start_time),
+         end_time = ymd_hms(end_time))] %>% 
+  setkey(driver, start_time, end_time)
+int30 = fread("data/22_Transformed_30_min_interval.csv") %>% 
+  .[,`:=`(start_time = ymd_hms(start_time),
+          end_time = ymd_hms(end_time))] %>% 
+  setkey(driver, start_time, end_time)
+shiftd = fread("data/23_Transformed_shifts.csv") %>% 
+  .[,`:=`(shift_start = ymd_hms(shift_start),
+          shift_end = ymd_hms(shift_end))] %>% 
+  setkey(driver, shift_start, shift_end)
+```
+
+```{r}
+agg30 = weather %>% 
+  merge(osmar, by = c("latitude", "longitude"), all.y = TRUE) %>% 
+  .[,dummy := ping_time] %>% 
+  setkey(driver, ping_time, dummy) %>% 
+  foverlaps(int30, type = "within",
+              mult = "all", nomatch = NULL) %>% 
+  .[,.(start_time = mean(start_time), end_time = mean(end_time),
+       interval_time = mean(interval_time), distance = mean(distance), 
+       precip_intensity = mean(precip_intensity, na.rm = TRUE),
+       precip_probability = mean(precip_probability, na.rm = TRUE),
+       wind_speed = mean(wind_speed, na.rm = TRUE),
+       visibility = mean(visibility, na.rm = TRUE),
+       speed_limit = mean(speed_limit, na.rm = TRUE),
+       num_lanes = mean(num_lanes, na.rm = TRUE)), 
+    .(driver, interval_id)] %>% 
+  merge(driver, by = "driver") %>% 
+  setkey(driver, start_time, end_time) %>% 
+  foverlaps(sce, by.x = c("driver", "start_time", "end_time"),
+            type = "any", mult = "all", nomatch = NA) %>% 
+  .[,.(n_SCE = sum(!is.na(event_time)), 
+       SCE_time = paste(event_time, collapse = ";"),
+       SCE_type = paste(event_type, collapse = ";"),
+       start_time = mean(start_time), end_time = mean(end_time),
+       interval_time = mean(interval_time), distance = mean(distance), 
+       age = mean(age), 
+       precip_intensity = mean(precip_intensity, na.rm = TRUE),
+       precip_probability = mean(precip_probability, na.rm = TRUE),
+       wind_speed = mean(wind_speed, na.rm = TRUE),
+       visibility = mean(visibility, na.rm = TRUE),
+       speed_limit = mean(speed_limit, na.rm = TRUE),
+       num_lanes = mean(num_lanes, na.rm = TRUE)),
+    .(driver, interval_id)] %>% 
+  .[,SCE_binary := ifelse(n_SCE >= 1, 1, 0)] %>% 
+  .[,`:=`(wind_speed = ifelse(is.na(wind_speed), mean(wind_speed, na.rm = TRUE), wind_speed),
+          visibility = ifelse(is.na(visibility), mean(visibility, na.rm = TRUE), visibility))] %>% 
+  setkey(driver, start_time, end_time) %>% 
+  foverlaps(shiftd, type = "within", mult = "all", nomatch = NA) %>% 
+  .[,cum_drive := cumsum(interval_time)/60, .(driver, shift_ID)]
+fwrite(agg30, "data/31-analyses_30_minute_intervals.csv")
+```
+
+## Aggregate shifts and events
+
+```{r}
+tmp_dat = weather %>% 
+  merge(osmar, by = c("latitude", "longitude"), all.y = TRUE) %>% 
+  .[,dummy := ping_time] %>% 
+  setkey(driver, ping_time, dummy) %>% 
+  foverlaps(shiftd, type = "within",
+              mult = "all", nomatch = NULL) %>% 
+  .[,.(start_time = mean(shift_start), end_time = mean(shift_end),
+       shift_length = mean(shift_length), 
+       precip_intensity = mean(precip_intensity, na.rm = TRUE),
+       precip_probability = mean(precip_probability, na.rm = TRUE),
+       wind_speed = mean(wind_speed, na.rm = TRUE),
+       visibility = mean(visibility, na.rm = TRUE),
+       speed_limit = mean(speed_limit, na.rm = TRUE),
+       num_lanes = mean(num_lanes, na.rm = TRUE)), 
+    .(driver, shift_ID)] %>% 
+  merge(driver, by = "driver") %>% 
+  setkey(driver, start_time, end_time) %>% 
+  foverlaps(sce, by.x = c("driver", "start_time", "end_time"),
+            type = "any", mult = "all", nomatch = NA) %>% 
+  .[,dummy:= NULL] %>% 
+  setkey(driver, shift_ID)
+
+shif = tmp_dat %>% 
+  .[,.(n_SCE = sum(!is.na(event_time)), 
+       SCE_time = paste(event_time, collapse = ";"),
+       SCE_type = paste(event_type, collapse = ";"),
+       start_time = mean(start_time), end_time = mean(end_time),
+       shift_length = mean(shift_length), 
+       age = mean(age), 
+       precip_intensity = mean(precip_intensity, na.rm = TRUE),
+       precip_probability = mean(precip_probability, na.rm = TRUE),
+       wind_speed = mean(wind_speed, na.rm = TRUE),
+       visibility = mean(visibility, na.rm = TRUE),
+       speed_limit = mean(speed_limit, na.rm = TRUE),
+       num_lanes = mean(num_lanes, na.rm = TRUE)),
+    .(driver, shift_ID)] %>% 
+  setkey(driver, shift_ID)
+
+event_tab = tmp_dat %>% 
+  .[event_type %in% c("HB", "HW", "CM", "RS"),
+    .(driver, shift_ID, start_time, event_time, shift_length)] %>% 
+  .[,`:=`(start_time = ymd_hms(start_time), event_time = ymd_hms(event_time))] %>% 
+  .[,time2event := as.integer(difftime(event_time, start_time, units = "mins"))] %>% 
+  .[,time2event := ifelse(time2event == 0, 0.01, time2event)]
+
+fwrite(shif, "data/32-analyses_shifts.csv")
+fwrite(event_tab, "data/33-analyses_events.csv")
+```
+
+
+```{r analysis30int, results='asis'}
+kable(agg30[1:5,], "latex", align = "c", 
+      booktab = TRUE, linesep = "", 
+      caption = "30 minutes intervals data for hierarchical logistic and Poisson regression") %>% 
+  kable_styling(latex_options = c("hold_position", "scale_down")) %>%
+  landscape()
+```
+
+```{r analysisshift, results='asis'}
+kable(shif[1:5,], "latex", align = "c", 
+      booktab = TRUE, linesep = "",
+      caption = "shifts data for hierarchical non-homogeneous Poisson process") %>% 
+  kable_styling(latex_options = c("hold_position", "scale_down")) %>%
+  landscape()
+```
+
+```{r analysisshiftevent, results='asis'}
+  kable(event_tab[1:5,], "latex", align = "c", 
+      booktab = TRUE, linesep = "",
+      caption = "SCEs data for hierarchical non-homogeneous Poisson process") %>% 
+  kable_styling(latex_options = c("hold_position", "scale_down"))
+```

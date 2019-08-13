@@ -1,0 +1,6 @@
+fit = stan_glmer(SCE_binary ~ age + 
+                        (1 + cum_drive|driver), data = as.data.frame(agg30), 
+                      family = binomial(link = "logit"), 
+                      chains = 1, iter = 1000)
+z = tidy(fit)
+View(z)

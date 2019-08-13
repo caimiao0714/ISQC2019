@@ -1,0 +1,17 @@
+"0","logitfit = readRDS(""./fit/logit_fit.rds"")"
+"2","Registered S3 methods overwritten by 'htmltools':
+  method               from         
+  print.html           tools:rstudio
+  print.shiny.tag      tools:rstudio
+  print.shiny.tag.list tools:rstudio
+"
+"2","Registered S3 method overwritten by 'htmlwidgets':
+  method           from         
+  print.htmlwidget tools:rstudio
+"
+"2","Registered S3 method overwritten by 'xts':
+  method     from
+  as.zoo.xts zoo 
+"
+"0","poifit = readRDS(""fit/poisson_fit.rds"")"
+"0","nhppfit = readRDS(""fit/nhpp_fit_non_center.rds"")"

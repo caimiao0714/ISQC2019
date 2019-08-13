@@ -1,0 +1,159 @@
+---
+title: "Visualize statistical results"
+author: "Miao Cai <miao.cai@slu.edu>"
+date: "8/12/2019"
+output: 
+  pdf_document:
+    number_sections: true
+    keep_tex: true
+header-includes: 
+  - \usepackage{float}
+  - \usepackage{dcolumn}
+  - \usepackage{booktabs}
+geometry: margin=2cm
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Logit
+
+```{r}
+pacman::p_load(dplyr, broom, bayesplot, tidyr)
+fitlogit = readRDS("./fit/logit_fit.rds")
+poifit = readRDS("fit/poisson_fit.rds")
+nhppfit = readRDS("fit/nhpp_fit_non_center.rds")
+```
+
+```{r}
+z = fitlogit %>% 
+  tidy(c("non-varying", "varying")) %>% 
+  filter(grepl("Intercept|cum_drive", term)) %>% 
+  select(driver = level, term, estimate) %>% 
+  mutate_if(is.factor, as.character) %>% 
+  mutate(driver = ifelse(is.na(driver), "all", driver)) %>% 
+  spread(key = term, value = estimate)
+
+z = z %>% 
+  mutate(`(Intercept)` = ifelse(driver != "all", 
+                                `(Intercept)` + z$`(Intercept)`[1],
+                                `(Intercept)`),
+         cum_drive = ifelse(driver != "all", 
+                                cum_drive + z$cum_drive[1],
+                                cum_drive))
+
+dmat = as.matrix(data.frame(x0 = rep(1, 1301),
+                            x1 = seq(0, 13, 0.01)))
+
+
+zz = dmat %*% t(as.matrix(z[,2:3])) %>% 
+  as.vector() %>% 
+  as.data.frame() %>% 
+  magrittr::set_colnames("p") %>% 
+  mutate(driver = rep(z$driver, each = 1301),
+         cum_drive = rep(seq(0, 13, 0.01), length(unique(z$driver))),
+         p = boot::inv.logit(p), 
+         pcolor = ifelse(driver == "all", "blue", "grey"),
+         psize = ifelse(driver == "all", 1, 0.5)) %>% 
+  arrange(desc(driver))
+
+
+p0 = ggplot() + 
+  geom_line(data = filter(zz, driver != "all"), 
+            aes(x = cum_drive, y = p, group = driver, color = I(pcolor)), 
+            alpha = 0.75) + 
+  geom_line(data = filter(zz, driver == "all"), 
+            aes(x = cum_drive, y = p, group = driver, color = I(pcolor))) + 
+  theme_test() + 
+  labs(x = "cumulative driving time (hours)", 
+       y = "probability of SCEs")
+# "Cumulative driving time and estimated probability of CE"
+p0
+
+ggsave("figs/fit_logit.png", p0, width = 10, height = 6.18, dpi = 300)
+```
+
+# Poisson
+
+```{r}
+z = poifit %>% 
+  tidy(c("non-varying", "varying")) %>% 
+  filter(grepl("Intercept|cum_drive", term)) %>% 
+  select(driver = level, term, estimate) %>% 
+  mutate_if(is.factor, as.character) %>% 
+  mutate(driver = ifelse(is.na(driver), "all", driver)) %>% 
+  spread(key = term, value = estimate)
+
+z = z %>% 
+  mutate(`(Intercept)` = ifelse(driver != "all", 
+                                `(Intercept)` + z$`(Intercept)`[1],
+                                `(Intercept)`),
+         cum_drive = ifelse(driver != "all", 
+                                cum_drive + z$cum_drive[1],
+                                cum_drive))
+
+dmat = as.matrix(data.frame(x0 = rep(1, 1301),
+                            x1 = seq(0, 13, 0.01)))
+
+
+zz = dmat %*% t(as.matrix(z[,2:3])) %>% 
+  as.vector() %>% 
+  as.data.frame() %>% 
+  magrittr::set_colnames("p") %>% 
+  mutate(driver = rep(z$driver, each = 1301),
+         cum_drive = rep(seq(0, 13, 0.01), length(unique(z$driver))),
+         p = exp(p), 
+         pcolor = ifelse(driver == "all", "blue", "grey"),
+         psize = ifelse(driver == "all", 1, 0.5)) %>% 
+  arrange(desc(driver))
+
+
+p1 = ggplot() + 
+  geom_line(data = filter(zz, driver != "all"), 
+            aes(x = cum_drive, y = p, group = driver, color = I(pcolor)), 
+            alpha = 0.75) + 
+  geom_line(data = filter(zz, driver == "all"), 
+            aes(x = cum_drive, y = p, group = driver, color = I(pcolor))) + 
+  theme_test() + 
+  labs(x = "cumulative driving time (hours)", 
+       y = "rate of SCEs")
+# "Cumulative driving time and estimated probability of CE"
+p1
+ggsave("figs/fit_Poisson.png", p1, width = 10, height = 6.18, dpi = 300)
+```
+
+
+# NHPP
+
+```{r}
+plp = function(beta, theta, t) return(beta/theta^beta*t^(beta-1))
+
+z = nhppfit %>% 
+  tidy() %>% 
+  filter(grepl("theta_temp", term)) %>% 
+  select(-std.error)
+
+dmat = data.frame(beta = nhppfit %>% 
+                    tidy() %>% 
+                    filter(grepl("beta", term)) %>% 
+                    pull(estimate) %>% 
+                    rep(nrow(z)*1300),
+                  theta = rep(z$estimate, 1300),
+                  shift_id = rep(z$term, 1300),
+                  t = rep(seq(0.01, 13, 0.01), nrow(z))) %>% 
+  mutate(intensity = plp(beta, theta, t))
+
+p2 = dmat %>% 
+  ggplot(aes(t, intensity, group = shift_id, color = shift_id)) + 
+  geom_line(alpha = 0.2) + 
+  labs(x = "cumulative driving time (hours)", 
+       y = "intensity of the PLP") + 
+  #ylim(c(0, 0.75)) + 
+  theme(legend.position = "none")
+
+p2
+
+ggsave("figs/fit_plp.png", p2, width = 10, height = 6.18, dpi = 300)
+```
+
