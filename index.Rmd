@@ -11,6 +11,7 @@ bibliography: refs.bib
 link-citations: yes
 output: 
   html_document:
+    css: functions/small_font.css
     toc: true
     toc_float: true
     number_sections: true
@@ -20,7 +21,7 @@ output:
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE,
-                      cache = FALSE,
+                      cache = TRUE,
                       out.width = "100%",
                       warning = FALSE,
                       message = FALSE,
@@ -29,8 +30,6 @@ knitr::opts_chunk$set(echo = TRUE,
 
 
 ---
-
-TBD
 
 # Initilization {-}
 
@@ -46,7 +45,11 @@ p_load(dataPreparation, DataExplorer, DT, tidyverse, MVN)
 
 
 # Useable Security
-As an illustration of the statistical (process control) opportunities in improving the utilization of human-generated data for cyber security applications, let us examine the dataset from @mohamed2016gametrics.  <font color="red">Manar, please add 3-5 sentences describing the experiment here</font>.
+As an illustration of the statistical (process control) opportunities in improving the utilization of human-generated data for cyber security applications, let us examine the dataset from @mohamed2016gametrics.  
+
+<!--
+<font color="red">Manar, please add 3-5 sentences describing the experiment here</font>.
+-->
 
 ## Loading the Data into R{.tabset .tabset-fade .tabset-pills}
 ```{r sec_explore, results='asis'}
@@ -89,7 +92,10 @@ mvn(df.cleaned.num, mvnTest = "hz", univariatePlot = "qqplot",
     multivariatePlot = "contour")$multivariateNormality
 ```
 
+# Statistical modeling
 
+
+# Summary
 
 ---
 
