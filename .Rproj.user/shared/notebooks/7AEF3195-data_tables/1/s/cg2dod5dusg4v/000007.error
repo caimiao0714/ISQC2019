@@ -1,1 +1,0 @@
-{"frames":[{"character_number":0,"end_character_number":0,"end_line_number":0,"file":"","func":"fwrite(eve, \"data/33-analyses_events.csv\")","line_number":0}],"message":"Error in fwrite(eve, \"data/33-analyses_events.csv\") : \n  object 'eve' not found\n"}

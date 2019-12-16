@@ -1,0 +1,97 @@
+---
+title: "Supplementary materials: A Statistical (Process Monitoring) Perspective on HumanPerformance Modeling in the Age of Cyber-Physical Systems"
+date:  "`r format(Sys.time(), '%B %d, %Y')`"
+author:
+  - name: "Fadel M. Megahed ^[Email: fmegahed@miamioh.edu | Phone: +1-513-529-4185 | Website: <a href=\"https://miamioh.edu/fsb/directory/?up=/directory/megahefm\">Miami University Official</a>]"
+  - name: "Allison Jones-Farmer ^[Email: farmerl2@miamioh.edu | Phone: +1-513-529-4823 | Website: <a href=\"https://miamioh.edu/fsb/directory/?up=/directory/farmerl2\">Miami University Official</a>]"
+  - name: "Miao Cai ^[Email: miao.cai@slu.edu | Phone: +1-314-326-8418 | Website: <a href=\"https://sites.google.com/a/slu.edu/my-cphsj/home/doctoral/public-health/current-phd-students\">Saint Louis University</a>]"
+  - name: "Steve Rigdon ^[Email: steve.rigdon@slu.edu | Phone: +1-314-977-8127 | Website: <a href=\"https://www.slu.edu/public-health-social-justice/faculty/rigdon-steven.php\">Saint Louis University Official</a>]"
+  - name: "Manar Mohamed ^[Email: mohamem@miamioh.edu | Phone: +1-513-529-0346 | Website: <a href=\"https://miamioh.edu/cec/academics/departments/cse/about/faculty-and-staff/mohammed-manar/index.html\">Miami University Official</a>]"
+bibliography: refs.bib
+link-citations: yes
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+    number_sections: true
+    df_print: paged
+    code_folding: hide
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,
+                      cache = FALSE,
+                      out.width = "100%",
+                      warning = FALSE,
+                      message = FALSE,
+                      results = "asis") 
+```
+
+
+---
+
+TBD
+
+# Initilization {-}
+
+The snippet below documents the list of **R** packages and functions that were used in this research. For convenience, we used the `pacman` package since it allows for installing/loading the needed packages in one step. Please make sure that the package is installed on your system using the command `install.packages("pacman")` before running this code chunk.
+
+```{r packages, cache=FALSE}
+rm(list = ls()) # clear global environment
+graphics.off() # close all graphics
+library(pacman) # needs to be installed first
+# p_load is equivalent to combining both install.packages() and library()
+p_load(dataPreparation, DataExplorer, DT, tidyverse, MVN)
+```
+
+
+# Useable Security
+As an illustration of the statistical (process control) opportunities in improving the utilization of human-generated data for cyber security applications, let us examine the dataset from @mohamed2016gametrics.  <font color="red">Manar, please add 3-5 sentences describing the experiment here</font>.
+
+## Loading the Data into R{.tabset .tabset-fade .tabset-pills}
+```{r sec_explore, results='asis'}
+source("functions/functions.R") # to load data.types()
+df <- read.csv("data/dcg_fetears_all.csv")
+
+cat(paste("We have read the Full Dataset into a data.frame (df) titled df.", "The df consists of", nrow(df),"and",
+          paste0(ncol(df),"."),"Additionally, R initially divides the columns of different types. We summarize these in the table below."))
+
+# First tab, where we summarize the column types
+cat(paste("###","Column Types","{-}","\n"))
+types <- data.types(df) # see functions.R file
+types
+cat("\n") # Printing a line break
+
+## Second Tab (Missing Data)
+cat(paste("###","Missing Data","{-}","\n"))
+cat("In the plot below, we sample 40 columns at random from the dataset to show the actual percentage of the data that is missing for each variable. The colors are used to denote the data quality for that column using a traffic light scheme (where green is good and red is bad).")
+df.na.plot <- df[,sample(colnames(df),40)] %>% plot_missing()
+
+## Third Tab (Clean Data)
+cat(paste("###","Clean Data","{-}","\n"))
+cat("Using the fastFilterVariables() from the dataPreparation R package, we can remove: (a) constant columns: they take the same value for every line; (b) double columns: they have an exact copy in the data set; and (c)bijection columns: there is another column containing the exact same information (but maybe coded differently) for example col1: Men/Women, col2 M/W. The results from this analysis is saved into a data frame titled: df.cleaned.")
+df.cleaned <- fastFilterVariables(df)
+
+cat(paste0("The data frame df.cleaned consists of ", ncol(df.cleaned), " columns. Note that the original data frame df had ", ncol(df), " columns."))
+
+saveRDS(df.cleaned, "results/sec_cleaned.RDS")
+```
+
+## Subsetting the Data and MVN Test
+
+```{r statistics_test}
+df.cleaned <- readRDS("results/sec_cleaned.RDS") %>% 
+  subset(select = c(ID, speed_touch_mean, 
+                    pause_and_drop_mean))
+df.cleaned.num <- select_if(df.cleaned, is.numeric) %>% 
+  slice(1:5000)
+mvn(df.cleaned.num, mvnTest = "hz", univariatePlot = "qqplot", 
+    multivariatePlot = "contour")$multivariateNormality
+```
+
+
+
+---
+
+# References {-}
+

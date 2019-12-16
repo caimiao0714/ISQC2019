@@ -1,5 +1,0 @@
-"0","fwrite(eve, ""data/33-analyses_events.csv"")
-"
-"2","Error in fwrite(eve, ""data/33-analyses_events.csv"") : 
-  object 'eve' not found
-"
